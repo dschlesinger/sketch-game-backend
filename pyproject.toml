@@ -1,0 +1,26 @@
+[project]
+name = "sketch-game-backend"
+version = "0.0.0"
+authors = [
+  { name="Denali Schlesinger", email="dsch28@bu.edu" },
+]
+description = "Backend for LLM game engine"
+readme = "README.md"
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: Independent"
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+dynamic = ["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[project.scripts]
+
+run-server="server.main:main"
+
+[project.urls]
+Homepage = "https://github.com/dschlesinger/sketch-game-backend"
