@@ -1,2 +1,5 @@
 fastapi[standard]
 requests
+boto3
+dotenv
+openai

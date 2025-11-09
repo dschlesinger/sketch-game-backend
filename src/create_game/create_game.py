@@ -2,17 +2,18 @@ from create_game.schema import GameState, Faction
 from create_game.continents import run_voronoi, find_neighbors, get_seeds, \
                                    expand_continents, join_continents, \
                                    make_cities
+from create_game.naming import name_faction
 
 import uuid
 import numpy as np
 
 def make_game(owner: str, n_players: int, grain: int = 100) -> GameState:
 
-    vor = run_voronoi()
+    vor = run_voronoi(grain=grain)
 
     adj, beta_provinces = find_neighbors(vor.filtered_regions, vor.vertices)
 
-    seeds = get_seeds(adj)
+    seeds = get_seeds(adj, n=n_players)
 
     continents = expand_continents(adj, seeds)
 
@@ -35,7 +36,7 @@ def make_game(owner: str, n_players: int, grain: int = 100) -> GameState:
     factions = [
         Faction(
             faction_id=c,
-            name='Placeholder',
+            name=name_faction(),
 
             is_availale=True,
             is_defeated=False,
@@ -44,7 +45,7 @@ def make_game(owner: str, n_players: int, grain: int = 100) -> GameState:
     ]
 
     return GameState(
-        game_id=uuid.uuid4(),
+        game_id=str(uuid.uuid4()),
         owner=owner,
         game_over=False,
         provinces=provinces,

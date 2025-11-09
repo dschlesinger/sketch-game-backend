@@ -33,9 +33,9 @@ class Province:
     # Init all as undefined then mature
 
     province_id: str
-    fractal_id: int
-    name: str
-    faction_id: str = None
+    fractal_id: str
+    name: str | None
+    faction_id: str | None = None
 
     # If true only province_id, border, centriod, army, and neighbor
     # fields will be populated.
@@ -61,7 +61,7 @@ class GameState:
     game_over: bool
 
     provinces: List[Province]
-    continents: List[List[float]]
+    continents: List[List[List[float]]]
     factions: List[Faction]
 
 def get_province(provinces: List[Province], province_id: str) -> Province | None:

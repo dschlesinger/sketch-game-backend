@@ -11,6 +11,7 @@ from typing import Set, List
 from create_game.schema import GameState, Province, Faction, \
                                City, Army, Port, Fort, \
                                get_province, get_province_by_fractal
+from create_game.naming import name_province
 
 def run_voronoi(grain: int = 100):
     """https://stackoverflow.com/questions/28665491/getting-a-bounded-polygon-coordinates-from-voronoi-cells"""
@@ -84,7 +85,7 @@ def find_neighbors(regions, vertices) -> np.ndarray:
       Province(
           province_id=str(uuid.uuid4()),
           fractal_id='-'.join([str(f) for f in r]),
-          name='Placeholder',
+          name=None,
           border=vertices[r + [r[0]], :].tolist(),
           centriod=vertices[r].mean(axis=0).tolist()
       ) for r in regions]
@@ -187,6 +188,7 @@ def join_continents(continents, provinces, vor):
 
                 pv = get_province_by_fractal(provinces, '-'.join([str(f) for f in region]))
 
+                pv.name = name_province()
                 pv.is_ocean = False
                 pv.faction_id = key
 
