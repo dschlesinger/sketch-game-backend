@@ -1,12 +1,15 @@
-import json, requests, os
-from typing import Dict
+import json
+import os
+from typing import Dict, List
 from dataclasses import asdict
+
 from pydantic import BaseModel
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import boto3
 from dotenv import load_dotenv
+import asyncio
 
 from create_game.schema import GameState
 from create_game.create_game import make_game
@@ -17,9 +20,10 @@ from llm.end_turn_agent import process_turn_end, update_game_state, update_conte
 
 load_dotenv()
 
-# --- AWS S3 setup ---
+# -------------------- AWS S3 --------------------
 aws_access_key = os.getenv('BOTO3_ACCESS_KEY') or os.getenv('BOTO3_ACSESS_KEY')
 aws_secret_key = os.getenv('BOTO3_SECRET_KEY')
+bucket_name = 'sketch-game-bucket'
 
 s3 = boto3.resource(
     's3',
@@ -27,14 +31,13 @@ s3 = boto3.resource(
     aws_secret_access_key=aws_secret_key,
     region_name='us-east-1'
 )
-
-bucket_name = 'sketch-game-bucket'
 bucket = s3.Bucket(bucket_name)
 
+s3_lock = asyncio.Lock()  # lock for concurrent writes
 
-# --- Helper functions ---
-def read_s3_text(key: str) -> str:
-    """Fetch a text file from S3 and decode it safely."""
+
+# -------------------- S3 Helpers --------------------
+async def read_s3_text(key: str) -> str:
     try:
         obj = bucket.Object(key).get()
         return obj['Body'].read().decode('utf-8')
@@ -43,101 +46,110 @@ def read_s3_text(key: str) -> str:
         return ""
 
 
-def write_s3_text(key: str, body: str | bytes):
-    """Upload text or bytes to S3."""
-    if isinstance(body, str):
-        body = body.encode('utf-8')
-    bucket.put_object(Key=key, Body=body)
+async def write_s3_text(key: str, body: str | bytes):
+    async with s3_lock:
+        if isinstance(body, str):
+            body = body.encode('utf-8')
+        bucket.put_object(Key=key, Body=body)
 
 
-# --- FastAPI setup ---
+# -------------------- FastAPI Setup --------------------
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-def endturn(game_id: str):
-    
-    game_state_data = read_s3_text(f'game-state/game-state-{game_id}.json')
-    context_text = read_s3_text(f'context/context-{game_id}.txt')
-    scratch_pad_texts = []
-    
-    for f in json.loads(game_state_data)['factions']:
-        scratch_pad_texts.append(read_s3_text(f'advisor-scratch-pad/pad-{game_id}-{f["faction_id"]}.txt'))
-
-    if not game_state_data:
-        return {"error": f"Game state not found for {game_id}"}
-
-    game_state_yaml = state_to_yaml(game_state_data)
-    updates = process_turn_end(context_text, game_state_yaml, scratch_pad_texts, create_game_state_from_json(game_state_data))
-
-    gs = update_game_state(s3, create_game_state_from_json(game_state_data), updates, 'sketch-game-bucket')
-
-    # Reset everyone to not end turn
-    for f in gs.factions:
-
-        f.turn_ended = False
-
-    new_gs_yaml = state_to_yaml(gs)
-
-    update_context(s3, bucket_name, game_id, context_text, new_gs_yaml, scratch_pad_texts)
-
-    return updates
+# Store connected websocket clients: {game_id: set of WebSockets}
+connected_clients: Dict[str, set] = {}
 
 
-def websocket_handler(route: str, data: Dict) -> Dict:
-    match route:
-        case 'end_turn':
-            game_id = data['game_id']
-            faction_id = data['faction_id']
-
-            # Read and update game state
-            game_state_json = read_s3_text(f'game-state/game-state-{game_id}.json')
-            if not game_state_json:
-                print(f"[ERROR] Missing game state for {game_id}")
-                return {}
-
-            game_state = json.loads(game_state_json)
-            for f in game_state['factions']:
-                if f['faction_id'] == faction_id:
-                    f['turn_ended'] = True
-
-            if all(f['turn_ended'] for f in game_state['factions']):
-                print('Everyone ended turn')
-
-                endturn(data['game_id'])
-
-            # Write updated state back
-            write_s3_text(f'game-state/game-state-{game_id}.json', json.dumps(game_state))
-        case _:
-            print(f'No handler for {route}')
-    return {}
-
-
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+# -------------------- WebSocket Handler --------------------
+@app.websocket("/ws/{game_id}")
+async def websocket_endpoint(websocket: WebSocket, game_id: str):
     await websocket.accept()
+    if game_id not in connected_clients:
+        connected_clients[game_id] = set()
+    connected_clients[game_id].add(websocket)
+
     try:
         while True:
             data = await websocket.receive_text()
-            print(f"Received: {data}")
             try:
-                data = json.loads(data)
-                await websocket.send_text(f"Echo: {data}")
-                websocket_handler(data['route'], data['message'])
+                message = json.loads(data)
+                route = message.get('route')
+                payload = message.get('message')
+                if route and payload:
+                    await websocket_handler(game_id, route, payload)
+
+                # Echo message back
+                await websocket.send_text(json.dumps({"echo": message}))
             except json.JSONDecodeError:
-                print(f'Entity {data} is not processable')
+                await websocket.send_text(json.dumps({"error": "Invalid JSON"}))
+
     except WebSocketDisconnect:
-        print("Client disconnected")
+        connected_clients[game_id].remove(websocket)
+        if not connected_clients[game_id]:
+            del connected_clients[game_id]
 
 
+async def websocket_handler(game_id: str, route: str, data: Dict):
+    if route == "end_turn":
+        faction_id = data["faction_id"]
+        game_state_json = await read_s3_text(f'game-state/game-state-{game_id}.json')
+        if not game_state_json:
+            return
+
+        game_state = json.loads(game_state_json)
+        for f in game_state['factions']:
+            if f['faction_id'] == faction_id:
+                f['turn_ended'] = True
+
+        if all(f['turn_ended'] for f in game_state['factions']):
+            print(f"[INFO] All factions ended turn for game {game_id}")
+            await end_turn(game_id)
+
+        await write_s3_text(f'game-state/game-state-{game_id}.json', json.dumps(game_state))
+
+
+# -------------------- End Turn Logic --------------------
+async def end_turn(game_id: str):
+    game_state_data = await read_s3_text(f'game-state/game-state-{game_id}.json')
+    context_text = await read_s3_text(f'context/context-{game_id}.txt')
+
+    scratch_pad_texts = []
+    for f in json.loads(game_state_data)['factions']:
+        scratch_pad_texts.append(await read_s3_text(f'advisor-scratch-pad/pad-{game_id}-{f["faction_id"]}.txt'))
+
+    game_state_instance = create_game_state_from_json(game_state_data)
+    game_state_yaml = state_to_yaml(game_state_data)
+
+    updates = process_turn_end(context_text, game_state_yaml, scratch_pad_texts, game_state_instance)
+
+    gs = update_game_state(s3, game_state_instance, updates, bucket_name)
+
+    # Reset turn_ended flags
+    for f in gs.factions:
+        f.turn_ended = False
+
+    new_gs_yaml = state_to_yaml(gs)
+    await update_context(s3, bucket_name, game_id, context_text, new_gs_yaml, scratch_pad_texts)
+
+    # Notify connected websocket clients
+    if game_id in connected_clients:
+        for ws in connected_clients[game_id]:
+            try:
+                await ws.send_text(json.dumps({"event": "turn_processed", "updates": [asdict(u) for u in updates]}))
+            except Exception:
+                pass
+
+
+# -------------------- HTTP Endpoints --------------------
 @app.get("/")
-def read_root():
+async def read_root():
     return {"message": "WebSocket server is running!"}
 
 
@@ -151,19 +163,15 @@ class GameRequest(BaseModel):
 async def create_game(message: GameRequest) -> GameState:
     game_state = make_game(message.owner, message.number_people, message.grain)
 
-    # Save game state JSON
-    write_s3_text(f'game-state/game-state-{game_state.game_id}.json', json.dumps(asdict(game_state)))
-
-    # Generate and save context
+    await write_s3_text(f'game-state/game-state-{game_state.game_id}.json', json.dumps(asdict(game_state)))
     game_state_yaml = state_to_yaml(game_state)
     context = generate_context(game_state_yaml)
-    write_s3_text(f'context/context-{game_state.game_id}.txt', context)
+    await write_s3_text(f'context/context-{game_state.game_id}.txt', context)
 
-    # Create empty advisor scratch pads
     for f in [f.faction_id for f in game_state.factions]:
-        write_s3_text(f'advisor-scratch-pad/pad-{game_state.game_id}-{f}.txt', '')
+        await write_s3_text(f'advisor-scratch-pad/pad-{game_state.game_id}-{f}.txt', '')
 
-    print(game_state.game_id)
+    print(f"[INFO] Created game {game_state.game_id}")
     return game_state
 
 
@@ -174,30 +182,26 @@ class AdvisorMessage(BaseModel):
 
 
 @app.post("/advisor")
-async def talk_w_advisor(message: AdvisorMessage) -> Dict:
+async def talk_w_advisor(message: AdvisorMessage):
     m = message
 
-    game_state_data = read_s3_text(f'game-state/game-state-{m.game_id}.json')
-    context_text = read_s3_text(f'context/context-{m.game_id}.txt')
-    scratch_pad_text = read_s3_text(f'advisor-scratch-pad/pad-{m.game_id}-{m.faction_id}.txt')
-
-    if not game_state_data:
-        return {"error": f"Game state not found for {m.game_id}"}
+    game_state_data = await read_s3_text(f'game-state/game-state-{m.game_id}.json')
+    context_text = await read_s3_text(f'context/context-{m.game_id}.txt')
+    scratch_pad_text = await read_s3_text(f'advisor-scratch-pad/pad-{m.game_id}-{m.faction_id}.txt')
 
     game_state_yaml = state_to_yaml(game_state_data)
     advice = get_advice(m.faction_id, context_text, game_state_yaml, scratch_pad_text, m.message)
 
     new_scratch_pad = update_scratch_pad(m.faction_id, context_text, game_state_yaml, scratch_pad_text, m.message)
+    await write_s3_text(f'advisor-scratch-pad/pad-{m.game_id}-{m.faction_id}.txt', new_scratch_pad)
 
-    write_s3_text(f'advisor-scratch-pad/pad-{m.game_id}-{m.faction_id}.txt', new_scratch_pad)
-
-    print(advice)
-    return {'advice': advice}
+    return {"advice": advice}
 
 
-def main() -> None:
-    uvicorn.run(app, port=8000)
+# -------------------- Main --------------------
+def main():
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
