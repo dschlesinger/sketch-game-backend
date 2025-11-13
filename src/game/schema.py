@@ -1,68 +1,63 @@
-from dataclasses import dataclass, field
 from typing import List
 
-@dataclass
-class City:
+from pydantic import BaseModel, Field
+
+
+class City(BaseModel):
     is_capital: bool
 
-@dataclass
-class Army:
+class Army(BaseModel):
+    army_id: str
     faction_id: str
+
     numbers: int
 
-@dataclass
-class Port:
+class Port(BaseModel):
     pass
 
-@dataclass
-class Fort:
+class Fort(BaseModel):
     pass
 
-@dataclass
-class Faction:
+class Faction(BaseModel):
     faction_id: str
     name: str
     
-    is_availale: bool
-    is_defeated: bool
+    available: bool
+    defeated: bool
     turn_ended: bool
 
-@dataclass
-class Province:
-
-    # Init all as undefined then mature
-
+class Province(BaseModel):
     province_id: str
     fractal_id: str
-    name: str | None
-    faction_id: str | None = None
+    name: str | None = None
 
-    # If true only province_id, border, centriod, army, and neighbor
-    # fields will be populated.
+    # Who controls province
+    faction_id: str | None = None
+    
+    # This is for ocean tiles
+    # If True only select fields will be populated
+    # province_id, fractal_id, border, centriod, \
+    # armies, & neighbors
     is_ocean: bool = True
 
     border: List[List[float]] = None
     centriod: List[float] = None
 
     city: City | None = None
-    army: Army | None = None
+    army: List[Army] = []
     fort: Fort | None = None
     port: Port | None = None
 
     # List of ids
-    neighbors: List[str] = field(default_factory=list)
+    neighbors: List[str] = Field(default_factory=list)
 
-@dataclass
-class GameState:
-    
+class GameState(BaseModel):
     game_id: str
+    name: str
     owner: str
 
-    game_over: bool
-
-    provinces: List[Province]
-    continents: List[List[List[float]]]
     factions: List[Faction]
+    provinces: List[Province]
 
 def get_province(provinces: List[Province], province_id: str) -> Province | None:
 

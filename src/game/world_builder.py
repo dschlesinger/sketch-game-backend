@@ -8,10 +8,10 @@ import random
 import uuid
 from typing import Set, List
 
-from create_game.schema import GameState, Province, Faction, \
-                               City, Army, Port, Fort, \
-                               get_province, get_province_by_fractal
-from create_game.naming import name_province
+from game.schema import Province, \
+    City, Army, Port, Fort, \
+    get_province, get_province_by_fractal
+from game.naming import name_province
 
 def run_voronoi(grain: int = 100):
     """https://stackoverflow.com/questions/28665491/getting-a-bounded-polygon-coordinates-from-voronoi-cells"""
@@ -83,7 +83,7 @@ def find_neighbors(regions, vertices) -> np.ndarray:
 
   beta_provinces = [
       Province(
-          province_id=str(uuid.uuid4()),
+          province_id=str(uuid.uuid4()).split('-')[0],
           fractal_id='-'.join([str(f) for f in r]),
           name=None,
           border=vertices[r + [r[0]], :].tolist(),
@@ -272,9 +272,10 @@ def make_cities(civilizations, provinces, city_percent: float = 0.3, army_percen
 
       pv.fort = Fort()
 
-      pv.army = Army(
+      pv.army = [Army(
           faction_id=pv.faction_id,
+          army_id=str(uuid.uuid4()).split('-')[0],
           numbers=random.choice([50, 100, 150, 200])
-      )
+      )]
 
 # make_cities(civilizations, provinces)

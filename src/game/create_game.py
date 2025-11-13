@@ -1,13 +1,11 @@
-from create_game.schema import GameState, Faction
-from create_game.continents import run_voronoi, find_neighbors, get_seeds, \
+from game.schema import GameState, Faction
+from game.world_builder import run_voronoi, find_neighbors, get_seeds, \
                                    expand_continents, join_continents, \
                                    make_cities
-from create_game.naming import name_faction
-
-import uuid
+from game.naming import name_faction
 import numpy as np
 
-def make_game(owner: str, n_players: int, grain: int = 100) -> GameState:
+def make_game(game_id: str, owner: str, n_players: int, grain: int = 100) -> GameState:
 
     vor = run_voronoi(grain=grain)
 
@@ -38,17 +36,16 @@ def make_game(owner: str, n_players: int, grain: int = 100) -> GameState:
             faction_id=c,
             name=name_faction(),
 
-            is_availale=True,
-            is_defeated=False,
+            availale=True,
+            defeated=False,
             turn_ended=False,
         ) for c in seeds.keys()
     ]
 
     return GameState(
-        game_id=str(uuid.uuid4()),
+        game_id=game_id,
         owner=owner,
         game_over=False,
         provinces=provinces,
-        continents=background_polys,
         factions=factions
     )
