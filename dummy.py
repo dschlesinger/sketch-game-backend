@@ -1,9 +1,10 @@
 import random
 import string
-from typing import List
+import json
+from typing import List, Dict, Set
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 
@@ -136,6 +137,71 @@ async def join_game(player: Player) -> bool:
     f.is_taken = True
 
     return True
+
+# class ConnectedPlayer(BaseModel):
+#     game_id: str
+#     faction_id: str
+
+#     def __hash__(self):
+#         return f'{self.game_id}|{self.faction_id}'
+
+# connected_players: Dict[ConnectedPlayer, WebSocket] = {}
+
+# Do by games
+class ConnectionManager:
+    def __init__(self):
+        self.active_games: Dict[str, Set[WebSocket]] = {}
+
+    async def connect(self, websocket: WebSocket, game_id: str):
+        await websocket.accept()
+
+        if game_id not in self.active_games:
+            self.active_games[game_id] = set()
+
+        self.active_games[game_id].add(websocket)
+
+        # Send game state
+        # self.send_game_state({}, websocket)
+
+        print("Client connected:", websocket.client)
+
+    def disconnect(self, websocket: WebSocket, game_id: str):
+        self.active_games[game_id].remove(websocket)
+        if not self.active_games[game_id]:
+            del self.active_games[game_id]
+        print("Client disconnected:", websocket.client)
+
+    async def send_game_state(self, game_state, websocket: WebSocket):
+        await websocket.send_text(game_state.model_dump())
+
+    async def broadcast_updates(self, updates: List, game_id: str):
+        for connection in self.active_connections[game_id]:
+            await connection.send_text(updates)
+
+manager = ConnectionManager()
+
+# -------------------- WebSocket Handler --------------------
+@app.websocket("/ws/attach-game")
+async def websocket_endpoint(websocket: WebSocket, game_id: str, faction_id: str):
+    await manager.connect(websocket, game_id)
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+            try:
+                message = json.loads(data)
+                route = message.get('route')
+                payload = message.get('message')
+                if route and payload:
+                    print(route, payload)
+
+                # Send Game State
+                await websocket.send_text(json.dumps({"echo": message}))
+            except json.JSONDecodeError:
+                await websocket.send_text(json.dumps({"error": "Invalid JSON"}))
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, game_id)
 
 if __name__ == '__main__':
 
