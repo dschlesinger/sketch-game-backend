@@ -2,14 +2,16 @@ import random
 import json
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from server.schema import GameCreate, Game, GAME_ID_CHARS, Player
+from server.schema import GameCreate, Game, GAME_ID_CHARS, Player, AdvisorMessage
 from server.settings import settings
 from server.manager import manager
 from server.websocket_handler import route_websocket
 from game.schema import GameState, get_faction
 from game.create_game import make_game
+from llm.advisor import advisor
 
 app = FastAPI()
 
@@ -88,6 +90,13 @@ async def join_game(player: Player) -> None:
     f.available = False
 
     storage.write_json(player.game_id, game_state)
+
+@app.post("/advisor")
+def advisor_chat(chat: AdvisorMessage) -> StreamingResponse:
+
+    stream_chat = advisor(chat.faction_id, chat.messages)
+
+    return StreamingResponse(stream_chat)
 
 @app.websocket("/ws/attach-game")
 async def websocket_endpoint(websocket: WebSocket, game_id: str, faction_id: str):

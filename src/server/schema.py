@@ -3,7 +3,7 @@ from typing import List
 
 from pydantic import BaseModel, field_validator
 
-from game.schema import Faction
+from llm.advisor import AdvisorMessage
 
 class GameCreate(BaseModel):
 
@@ -38,3 +38,9 @@ class Game(BaseModel):
 class Player(BaseModel):
     game_id: str
     faction_id: str
+
+class AdvisorChat(BaseModel):
+    game_id: str
+    faction_id: str
+
+    messages: List[AdvisorMessage]
