@@ -5,7 +5,7 @@ from game.world_builder import run_voronoi, find_neighbors, get_seeds, \
 from game.naming import name_faction
 import numpy as np
 
-def make_game(game_id: str, owner: str, n_players: int, grain: int = 100) -> GameState:
+def make_game(game_id: str, name: str, owner: str, n_players: int, grain: int = 100) -> GameState:
 
     vor = run_voronoi(grain=grain)
 
@@ -36,7 +36,7 @@ def make_game(game_id: str, owner: str, n_players: int, grain: int = 100) -> Gam
             faction_id=c,
             name=name_faction(),
 
-            availale=True,
+            available=True,
             defeated=False,
             turn_ended=False,
         ) for c in seeds.keys()
@@ -44,6 +44,7 @@ def make_game(game_id: str, owner: str, n_players: int, grain: int = 100) -> Gam
 
     return GameState(
         game_id=game_id,
+        name=name,
         owner=owner,
         game_over=False,
         provinces=provinces,

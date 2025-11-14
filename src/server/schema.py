@@ -24,7 +24,7 @@ class GameCreate(BaseModel):
     
     @field_validator('grain')
     @classmethod
-    def limit_players(cls, grain: int) -> int:
+    def limit_grain(cls, grain: int) -> int:
         if not 500 >= grain >= 10:
             raise ValueError('grain must be 500 >= grain >= 10')
         return grain
@@ -38,11 +38,3 @@ class Game(BaseModel):
 class Player(BaseModel):
     game_id: str
     faction_id: str
-
-def get_faction(faction_id: str, factions: List[Faction]) -> Faction | None:
-
-    for f in factions:
-
-        if f.faction_id == faction_id:
-
-            return f

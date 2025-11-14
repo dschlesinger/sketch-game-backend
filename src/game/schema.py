@@ -55,6 +55,7 @@ class GameState(BaseModel):
     game_id: str
     name: str
     owner: str
+    game_over: bool
 
     factions: List[Faction]
     provinces: List[Province]

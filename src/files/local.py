@@ -8,8 +8,8 @@ from game.schema import GameState
 
 class LocalStorage(BaseModel):
 
-    context_route: str = 'dev/advisor_notes'
-    game_state_route: str = 'dev/game_context'
+    context_route: str = 'dev/game_context'
+    game_state_route: str = 'dev/game_state'
     advisor_notes_route: str = 'dev/advisor_notes'
 
     @property
@@ -19,7 +19,7 @@ class LocalStorage(BaseModel):
         all_game_ids = set()
 
         # Check game state routes
-        for game_state in os.listdir(self.game_state_routes):
+        for game_state in os.listdir(self.game_state_route):
 
             game_id = game_state.removesuffix('.json')
 

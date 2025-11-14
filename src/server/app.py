@@ -1,11 +1,14 @@
 import random
+import json
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from server.schema import GameCreate, Game, GAME_ID_CHARS, Player, get_faction
+from server.schema import GameCreate, Game, GAME_ID_CHARS, Player
 from server.settings import settings
-from game.schema import GameState
+from server.manager import manager
+from server.websocket_handler import route_websocket
+from game.schema import GameState, get_faction
 from game.create_game import make_game
 
 app = FastAPI()
@@ -50,12 +53,15 @@ def create_game(game: GameCreate) -> Game:
 
     game_state = make_game(
         game_id,
+        game.name,
         game.owner,
         game.nplayers,
         game.grain
     )
 
     storage.set_game_state(game_id, game_state)
+
+    print('Setting storage')
 
     return Game(
         game_id=game_id
@@ -66,7 +72,7 @@ async def join_game(player: Player) -> None:
 
     game_state = storage.get_game_state(player.game_id)
 
-    f = get_faction(player.faction_id, game_state)
+    f = get_faction(game_state.factions, player.faction_id)
 
     if not f.available:
 
@@ -80,3 +86,28 @@ async def join_game(player: Player) -> None:
 
     # Set player to taken
     f.available = False
+
+    storage.write_json(player.game_id, game_state)
+
+@app.websocket("/ws/attach-game")
+async def websocket_endpoint(websocket: WebSocket, game_id: str, faction_id: str):
+    await manager.connect(websocket, game_id)
+
+    try:
+        while True:
+            data = await websocket.receive_text()
+            try:
+                message = json.loads(data)
+                route = message.get('route')
+                payload = message.get('message')
+                if route and payload:
+                    print(route, payload)
+                    await route_websocket(game_id, faction_id, route, payload, storage)
+
+                # Send Game State
+                await websocket.send_text(json.dumps({"echo": message}))
+            except json.JSONDecodeError:
+                await websocket.send_text(json.dumps({"error": "Invalid JSON"}))
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, game_id)
