@@ -1,4 +1,4 @@
-from typing import List, Literal, AsyncGenerator
+from typing import List, Literal, Generator
 
 from pydantic import BaseModel
 
@@ -11,26 +11,26 @@ class AdvisorMessage(BaseModel):
     message: str
 
 # Streaming
-async def advisor(faction_id: str, chats: List[AdvisorMessage]) -> AsyncGenerator:
-
+def advisor(faction_id: str, chats: List[AdvisorMessage]):
     system_prompt = load_prompt('advisor')
 
-    stream = await client.chat.completions.create(
+    stream = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {
-                'role': 'system',
-                'content': system_prompt
-            },
-            *[{
-                'role': ('user' if m.role == 'player' else 'assistant'),
-                'content': m.message
-            } for m in chats]
+            {"role": "system", "content": system_prompt},
+            *[
+                {"role": "user" if m.role == "player" else "assistant", "content": m.message}
+                for m in chats
+            ],
         ],
         stream=True,
     )
 
-    async for chunk in stream:
-        content = chunk.choices[0].delta.get("content")
+    for chunk in stream:
+        if chunk:
+            content = chunk.choices[0].delta.content
+            print("LLM TOKEN:", content)
 
-        yield content
+            if content:
+                # SSE FORMAT!
+                yield f"data: {content}\n\n"

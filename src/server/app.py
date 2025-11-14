@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from server.schema import GameCreate, Game, GAME_ID_CHARS, Player, AdvisorMessage
+from server.schema import GameCreate, Game, GAME_ID_CHARS, Player, AdvisorChat
 from server.settings import settings
 from server.manager import manager
 from server.websocket_handler import route_websocket
@@ -78,7 +78,10 @@ async def join_game(player: Player) -> None:
 
     if not f.available:
 
-        return HTTPException('Faction is taken')
+        return HTTPException(
+            status_code=500,
+            detail='Faction is taken'
+        )
 
     else:
 
@@ -89,10 +92,10 @@ async def join_game(player: Player) -> None:
     # Set player to taken
     f.available = False
 
-    storage.write_json(player.game_id, game_state)
+    storage.set_game_state(player.game_id, game_state)
 
 @app.post("/advisor")
-def advisor_chat(chat: AdvisorMessage) -> StreamingResponse:
+def advisor_chat(chat: AdvisorChat) -> StreamingResponse:
 
     stream_chat = advisor(chat.faction_id, chat.messages)
 
