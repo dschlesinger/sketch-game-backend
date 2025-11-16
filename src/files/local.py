@@ -63,7 +63,7 @@ class LocalStorage(BaseModel):
 
         path = f'{self.context_route}/{game_id}.txt'
 
-        context = self.load_file(path)
+        context = self.load_txt(path)
 
         return context
     

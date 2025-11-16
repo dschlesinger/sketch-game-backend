@@ -122,12 +122,12 @@ def get_seeds(adj: np.array, n: int = 6, percent_connection_min: float = 0.02):
 
     row = adj[rn]
 
-    if adj.shape[0] * percent_connection_min >= row.sum():
-      # this one isnt good enough
-      retries += 1
-      continue
+    # if adj.shape[0] * percent_connection_min >= row.sum():
+    #   # this one isnt good enough
+    #   retries += 1
+    #   continue
 
-    continents[str(uuid.uuid4())] = [rn]
+    continents[str(uuid.uuid4()).split('-')[0]] = [rn]
 
   return continents
 

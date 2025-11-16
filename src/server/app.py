@@ -11,7 +11,8 @@ from server.manager import manager
 from server.websocket_handler import route_websocket
 from game.schema import GameState, get_faction
 from game.create_game import make_game
-from llm.advisor import advisor
+from llm.advisor import advisor, init_advising_notes
+from llm.game_context import init_game_context
 
 app = FastAPI()
 
@@ -63,7 +64,8 @@ def create_game(game: GameCreate) -> Game:
 
     storage.set_game_state(game_id, game_state)
 
-    print('Setting storage')
+    init_game_context(game_id, storage)
+    init_advising_notes(game_id, game_state.factions, storage)
 
     return Game(
         game_id=game_id
@@ -97,7 +99,7 @@ async def join_game(player: Player) -> None:
 @app.post("/advisor")
 def advisor_chat(chat: AdvisorChat) -> StreamingResponse:
 
-    stream_chat = advisor(chat.faction_id, chat.messages)
+    stream_chat = advisor(chat.game_id, chat.faction_id, chat.messages, storage)
 
     return StreamingResponse(stream_chat)
 

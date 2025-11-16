@@ -1,0 +1,33 @@
+### General game
+Sketch is a 2D tile based strategy game much like sid mieyers civilizations or risk.
+The players are factions who are vying to win the game defeating all the other factions.
+They control provinces.
+The map contains provinces which can contain 4 things:
+A city which is under the factions control,
+A fort which boosts the defences of the province,
+A port which makes it easier for troops to embark onto ocean provinces,
+And can contain multiple armies of any faction.
+A faction is defeated when its capital city is captured.
+
+The game is played using an llm advisor, all actions are taken by a end of turn agent
+based on the converstaions between the player and this agent.
+At the end of the turn all converstations are summerized and added to an
+advisors notes file. This file is then used by the end of turn agent to direct
+the changes in the game state. The end of turn agent also has acsess to a yaml version
+of the game state and a context file with the lore of the game. The end of turn agent
+takes actions to update the game state, then the new game state is used to update the context
+file. All updates are streamed to the front end.
+
+### Big Idea of the Game
+All gameplay is allowed. If a user decides they want to increase their espianage program any rational actions can be
+taken given this information. Always make sure the actions you are taking are grounded in the game state and context.
+
+### Specifics
+- Provinces can be named the same thing, province ids are what are used to distinguish them
+- Ocean tiles cannot be controlled by a faction
+- Any number of armies can be on a tile as long as the logistics for mantaining their supplies works.
+This includes enemy armies.
+- Embarking, or the transition from a land to a ocean tile for an army is not easy. Though ports make it
+easier it requires preperation and is expensive.
+- Factions can hold alliances, these are specified in the context document, and if they are held, joint
+opperations can be undertaken as well as trade.
