@@ -46,15 +46,25 @@ def advisor(game_id: str, faction_id: str, chats: List[AdvisorMessage], storage:
     
     print(messages)
 
-    stream = client.chat.completions.create(
-        model="google/gemini-2.5-pro",
-        messages=messages,
-        stream=True,
-    )
+    # stream = client.chat.completions.create(
+    #     model="google/gemini-2.5-pro",
+    #     messages=messages,
+    #     stream=True,
+    # )
+
+    def test_gen():
+        from time import sleep
+
+        for c in ['This', ' is', ' a', ' test', ' generator!']:
+            sleep(0.5)
+            yield c
+    
+    stream = test_gen()
 
     for chunk in stream:
         if chunk:
-            content = chunk.choices[0].delta.content
+            #content = chunk.choices[0].delta.content
+            content = chunk
             print("LLM TOKEN:", content)
 
             if content:

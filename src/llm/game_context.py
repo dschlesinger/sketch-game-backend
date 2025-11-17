@@ -15,21 +15,22 @@ def init_game_context(game_id: str, storage: LocalStorage) -> None:
 
     create_request = '\n'.join([prompt, gamerules, game_state_yaml])
 
-    completion = client.chat.completions.create(
-        model="google/gemini-2.5-pro",
-        messages=[
-                    {
-                        'role': "system",
-                        "content": "Generate the lore based on the user prompt"
-                    },
-                    {
-                        'role': 'user',
-                        'content': create_request
-                    }
-            ]
-        )
+    # completion = client.chat.completions.create(
+    #     model="google/gemini-2.5-pro",
+    #     messages=[
+    #                 {
+    #                     'role': "system",
+    #                     "content": "Generate the lore based on the user prompt"
+    #                 },
+    #                 {
+    #                     'role': 'user',
+    #                     'content': create_request
+    #                 }
+    #         ]
+    #     )
 
-    context = completion.choices[0].message.content
+    # context = completion.choices[0].message.content
+    context = 'blank context'
 
     storage.set_context(game_id, context)
 

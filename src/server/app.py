@@ -1,11 +1,12 @@
 import random
 import json
+from typing import Generator
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from server.schema import GameCreate, Game, GAME_ID_CHARS, Player, AdvisorChat
+from server.schema import GameCreate, Game, GAME_ID_CHARS, Player, AdvisorChat, GameCreateStep
 from server.settings import settings
 from server.manager import manager
 from server.websocket_handler import route_websocket
@@ -33,6 +34,14 @@ else:
     # Prod
     raise NotImplementedError('Production storage not implemented')
 
+# For checking if the server is active
+@app.get('/')
+def is_active() -> None:
+
+    return {
+        'message': 'It\'s possible. I have friends everywhere.'
+    }
+
 # I/O bound opperation use async def
 @app.get('/game-info/{game_id}')
 async def game_info(game_id: str) -> GameState:
@@ -50,25 +59,42 @@ async def game_info(game_id: str) -> GameState:
 
 # def instead of async def as this is not an I/O bound opperation
 @app.post('/create-game')
-def create_game(game: GameCreate) -> Game:
+def create_game(game: GameCreate) -> StreamingResponse:
 
-    game_id = ''.join([random.choice(GAME_ID_CHARS) for _ in range(6)])
+    def create_game_pipeline(game: GameCreate) -> Generator:
+        try:
+            game_id = ''.join([random.choice(GAME_ID_CHARS) for _ in range(6)])
 
-    game_state = make_game(
-        game_id,
-        game.name,
-        game.owner,
-        game.nplayers,
-        game.grain
-    )
+            yield f"data: {GameCreateStep(step='map', game_id=game_id).model_dump_json()}\n\n"
 
-    storage.set_game_state(game_id, game_state)
+            game_state = make_game(
+                game_id,
+                game.name,
+                game.owner,
+                game.nplayers,
+                game.grain
+            )
 
-    init_game_context(game_id, storage)
-    init_advising_notes(game_id, game_state.factions, storage)
+            storage.set_game_state(game_id, game_state)
 
-    return Game(
-        game_id=game_id
+            yield f"data: {GameCreateStep(step='lore', game_id=game_id).model_dump_json()}\n\n"
+
+            init_game_context(game_id, storage)
+            init_advising_notes(game_id, game_state.factions, storage)
+
+            yield f"data: {GameCreateStep(step='final', game_id=game_id).model_dump_json()}\n\n"
+            
+        except Exception as e:
+            error_data = json.dumps({"error": str(e), "step": "error"})
+            yield f"data: {error_data}\n\n"
+    
+    return StreamingResponse(
+        create_game_pipeline(game),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
     )
 
 @app.post('/join-game')

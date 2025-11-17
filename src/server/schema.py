@@ -44,3 +44,7 @@ class AdvisorChat(BaseModel):
     faction_id: str
 
     messages: List[AdvisorMessage]
+
+class GameCreateStep(BaseModel):
+    step: str
+    game_id: str
