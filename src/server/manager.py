@@ -1,6 +1,7 @@
 from typing import Dict, List, Set
 
 from fastapi import WebSocket, WebSocketDisconnect
+from server.schema import GameUpdateList
 
 class ConnectionManager:
     def __init__(self):
@@ -25,8 +26,8 @@ class ConnectionManager:
     async def send_game_state(self, game_state, websocket: WebSocket):
         await websocket.send_text(game_state.model_dump())
 
-    async def broadcast_updates(self, updates: List, game_id: str):
-        for connection in self.active_connections[game_id]:
-            await connection.send_text(updates)
+    async def broadcast_updates(self, game_id: str, updates: GameUpdateList):
+        for connection in self.active_games[game_id]:
+            await connection.send_text(updates.model_dump_json())
 
 manager = ConnectionManager()

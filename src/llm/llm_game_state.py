@@ -95,7 +95,7 @@ def generate_game_state_yaml_manual(game_state: GameState) -> str:
             for a in p.army:
                 army_owner = faction_lookup.get(a.faction_id, "Unknown")
                 unit_type = "Fleet" if p.is_ocean else "Army"
-                contents_list.append(f"{unit_type} ({army_owner}): {a.numbers}")
+                contents_list.append(f"{unit_type} ({army_owner}): {a.numbers} (army id: {a.army_id})")
         if p.fort:
             contents_list.append("Fort")
         if p.port:

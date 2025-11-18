@@ -131,6 +131,12 @@ def advisor_chat(chat: AdvisorChat) -> StreamingResponse:
 
 @app.websocket("/ws/attach-game")
 async def websocket_endpoint(websocket: WebSocket, game_id: str, faction_id: str):
+
+    print(game_id, faction_id)
+    if game_id is None or faction_id is None:
+        # Not a valid attachment request
+        return
+
     await manager.connect(websocket, game_id)
 
     try:
@@ -142,7 +148,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, faction_id: str
                 payload = message.get('message')
                 if route is not None and payload is not None:
                     print(route, payload)
-                    await route_websocket(game_id, faction_id, route, payload, storage)
+                    await route_websocket(game_id, faction_id, route, payload, manager, storage)
                 else:
                     print('invalid ws package', route, payload)
                 # Send Game State

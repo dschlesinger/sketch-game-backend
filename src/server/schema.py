@@ -1,5 +1,5 @@
 import string
-from typing import List
+from typing import List, Literal, Dict
 
 from pydantic import BaseModel, field_validator
 
@@ -48,3 +48,17 @@ class AdvisorChat(BaseModel):
 class GameCreateStep(BaseModel):
     step: str
     game_id: str
+
+class GameUpdate(BaseModel):
+    type: Literal[
+        'ended_turn', # A players ended turn status has changed, not end of game turn
+        'game_turn', # Status on turn waiting changed
+        'army_change', # The numbers of an army have increased or decreased
+        'province_change', # The faction owner of a province has changed
+        'new_army', # A new army has been created
+        'move_army', # Amry moves to a new province
+    ]
+    props: Dict
+
+class GameUpdateList(BaseModel):
+    game_updates: List[GameUpdate]

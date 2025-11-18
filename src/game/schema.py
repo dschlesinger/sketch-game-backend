@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Literal
 
 from pydantic import BaseModel, Field
 
@@ -56,6 +56,7 @@ class GameState(BaseModel):
     name: str
     owner: str
     game_over: bool
+    turn_status: Literal['playing', 'editting_game_state', 'updating_context'] = 'playing'
 
     factions: List[Faction]
     provinces: List[Province]
@@ -82,6 +83,16 @@ def get_faction(factions: List[Faction], faction_id: str) -> Faction | None:
         
     return None
 
+def get_army(provinces: List[Province], army_id: str) -> Army | None:
+
+    for a in sum([p.army for p in provinces], []):
+
+        if a.army_id == army_id:
+
+            return a
+        
+    return None
+
 def get_province_by_fractal(province: List[Province], fractal_id: int) -> Province | None:
 
     for p in province:
@@ -91,3 +102,15 @@ def get_province_by_fractal(province: List[Province], fractal_id: int) -> Provin
             return p
         
     return None
+
+def remove_army_from_current_province(provinces: List[Province], army_id: str) -> Army | None:
+
+    for p in provinces:
+
+        for a in p.army:
+
+            if a.army_id == army_id:
+
+                p.army.remove(a)
+
+                return a
