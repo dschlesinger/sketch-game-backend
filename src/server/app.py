@@ -152,7 +152,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, faction_id: str
                 else:
                     print('invalid ws package', route, payload)
                 # Send Game State
-                await websocket.send_text(json.dumps({"echo": message}))
+                # await websocket.send_text(json.dumps({"echo": message}))
             except json.JSONDecodeError:
                 await websocket.send_text(json.dumps({"error": "Invalid JSON"}))
 

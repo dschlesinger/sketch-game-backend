@@ -1,0 +1,5 @@
+You are updating the context of a 2D strategy game.
+Read the rules to understand the limitations of the game.
+Update the game lore based on the updates to the game state,
+and the advisors converstations with the users.
+Make sure to retain any important information.

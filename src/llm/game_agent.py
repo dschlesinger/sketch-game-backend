@@ -1,10 +1,12 @@
+from typing import List
+
 from files.local import LocalStorage
 from llm.client import client
 from llm.helper_func import load_gamerules, load_prompt
 from llm.llm_game_state import process
 from llm.agent_tools import AGENT_TOOLS
 
-def end_of_turn_update(game_id: str, storage: LocalStorage) -> None:
+def end_of_turn_update(game_id: str, storage: LocalStorage) -> List:
     
     prompt = load_prompt('end_of_turn')
     game_rules = load_gamerules()
@@ -30,91 +32,27 @@ def end_of_turn_update(game_id: str, storage: LocalStorage) -> None:
                             advisor_notes_section
                             ])
 
-    # completion = client.chat.completions.create(
-    #     model="gpt-4o",
-    #     messages=[{
-    #         "role": "system",
-    #         "content": system_prompt
-    #     },
-    #     {
-    #         'role': 'user',
-    #         'content': 'complete the end of turn, use as many tools as you think are needed'
-    #     }],
-    #     tools=AGENT_TOOLS
-    # )
-
-    # choice = completion.choices[0].message
-    # updates = []
-
-    # if hasattr(choice, "tool_calls") and choice.tool_calls:
-    #     for tool_call in choice.tool_calls:
-    #         tool_name = tool_call.function.name
-    #         args = tool_call.function.arguments
-    #         print(f"[TOOL CALL] {tool_name}({args})")
-    #         # updates.extend(apply_tool_call(tool_name, json.loads(args), game_state))
-
-    #     return choice.tool_calls
-
-    from pydantic import BaseModel
-    from typing import Dict
-
-    class Func(BaseModel):
-
-        name: str
-        arguments: Dict
-
-    class FakeTool(BaseModel):
-
-        function: Func
-
-    a = FakeTool(
-        function=Func(
-            name='add_to_army',
-            arguments={
-                'army_id': '63c60320',
-                'numbers': 10,
-            }
-        )
-    )
-    b = FakeTool(
-        function=Func(
-            name='subtract_from_army',
-            arguments={
-                'army_id': '800a352d',
-                'numbers': -10,
-            }
-        )
-    )
-    c = FakeTool(
-        function=Func(
-            name='move_army',
-            arguments={
-                'army_id': '800a352d',
-                'province_id': '05deeec4',
-            }
-        )
-    )
-    d = FakeTool(
-        function=Func(
-            name='new_army',
-            arguments={
-                "faction_id": '280324ae',
-                "province_id": '0bbf788c',
-                "numbers": 1000,
-            }
-        )
+    completion = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[{
+            "role": "system",
+            "content": system_prompt
+        },
+        {
+            'role': 'user',
+            'content': 'complete the end of turn, use as many tools as you think are needed'
+        }],
+        tools=AGENT_TOOLS
     )
 
-    e = FakeTool(
-        function=Func(
-            name='province_capture',
-            arguments={
-                "faction_id": '280324ae',
-                "province_id": '0bbf788c',
-            }
-        )
-    )
+    choice = completion.choices[0].message
+    updates = []
 
-    return [
-        a, b, c, d, e
-    ]
+    if hasattr(choice, "tool_calls") and choice.tool_calls:
+        for tool_call in choice.tool_calls:
+            tool_name = tool_call.function.name
+            args = tool_call.function.arguments
+            print(f"[TOOL CALL] {tool_name}({args})")
+            # updates.extend(apply_tool_call(tool_name, json.loads(args), game_state))
+
+        return choice.tool_calls

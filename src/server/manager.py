@@ -28,6 +28,7 @@ class ConnectionManager:
 
     async def broadcast_updates(self, game_id: str, updates: GameUpdateList):
         for connection in self.active_games[game_id]:
+            print('Sending update')
             await connection.send_text(updates.model_dump_json())
 
 manager = ConnectionManager()

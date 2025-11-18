@@ -51,7 +51,7 @@ def advisor(game_id: str, faction_id: str, chats: List[AdvisorMessage], storage:
     print(messages)
 
     stream = client.chat.completions.create(
-        model="google/gemini-2.5-pro",
+        model="openai/gpt-4o-mini",
         messages=messages,
         stream=True,
     )

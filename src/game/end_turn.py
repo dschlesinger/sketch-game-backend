@@ -1,5 +1,6 @@
 from typing import List
 import uuid
+import json
 
 from game.schema import GameState, get_faction, get_province, get_army, remove_army_from_current_province, Army
 from llm.game_agent import end_of_turn_update
@@ -22,33 +23,37 @@ def endturn(game_id: str, game_state: GameState, storage: LocalStorage) -> GameU
 
 def tool_calls_to_updates(tool_calls: List) -> GameUpdateList:
 
+    print(tool_calls)
+
     updates = []
 
     for t in tool_calls:
+
+        args = json.loads(t.function.arguments)
 
         match t.function.name:
 
             case 'add_to_army':
                 
-                if t.function.arguments['numbers'] < 1:
+                if args['numbers'] < 1:
                     print('tool call flawed', t)
 
                 updates.append(
                     GameUpdate(
                         type='army_change',
-                        props=t.function.arguments
+                        props=args
                     )
                 )
 
             case 'subtract_from_army':
 
-                if t.function.arguments['numbers'] > -1:
+                if args['numbers'] > -1:
                     print('tool call flawed', t)
 
                 updates.append(
                     GameUpdate(
                         type='army_change',
-                        props=t.function.arguments
+                        props=args
                     )
                 )
 
@@ -56,19 +61,19 @@ def tool_calls_to_updates(tool_calls: List) -> GameUpdateList:
                 updates.append(
                     GameUpdate(
                         type='move_army',
-                        props=t.function.arguments
+                        props=args
                     )
                 )
 
             case 'new_army':
                 
-                if t.function.arguments['numbers'] < 1:
+                if args['numbers'] < 1:
                     print('tool call flawed', t)
 
                 updates.append(
                     GameUpdate(
                         type='new_army',
-                        props=t.function.arguments
+                        props=args
                     )
                 )
 
@@ -77,7 +82,7 @@ def tool_calls_to_updates(tool_calls: List) -> GameUpdateList:
                 updates.append(
                     GameUpdate(
                         type='province_change',
-                        props=t.function.arguments
+                        props=args
                     )
                 )
 
@@ -143,6 +148,8 @@ def update_game_state(game_state: GameState, updates: GameUpdateList) -> GameSta
                 faction_id = u.props['faction_id']
 
                 army_id = str(uuid.uuid4()).split('-')[0]
+
+                u.props['army_id'] = army_id
 
                 p = get_province(game_state.provinces, province_id)
 
