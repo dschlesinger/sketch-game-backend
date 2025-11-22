@@ -9,7 +9,7 @@ class Settings(BaseSettings):
 
     OPEN_ROUTER_KEY: str
 
-    BOTO3_ACSESS_KEY: str
+    BOTO3_ACCESS_KEY: str
     BOTO3_SECRET_KEY: str
 
     model_config = SettingsConfigDict(env_file=".env")

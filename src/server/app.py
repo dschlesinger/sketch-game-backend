@@ -14,6 +14,7 @@ from game.schema import GameState, get_faction
 from game.create_game import make_game
 from llm.advisor import advisor, init_advising_notes
 from llm.game_context import init_game_context
+from files.schema import GameNotFoundException
 
 app = FastAPI()
 
@@ -48,14 +49,16 @@ async def game_info(game_id: str) -> GameState:
 
     print(game_id)
 
-    if not game_id in storage.all_game_ids:
+    try:
+        game_state = storage.get_game_state(game_id)
+    except GameNotFoundException:
 
         raise HTTPException(
             status_code=500,
             detail='Game ID not found'
         )
 
-    return storage.get_game_state(game_id)
+    return game_state
 
 # def instead of async def as this is not an I/O bound opperation
 @app.post('/create-game')
@@ -100,7 +103,13 @@ def create_game(game: GameCreate) -> StreamingResponse:
 @app.post('/join-game')
 async def join_game(player: Player) -> None:
 
-    game_state = storage.get_game_state(player.game_id)
+    try:
+        game_state = storage.get_game_state(player.game_id)
+    except GameNotFoundException:
+        return HTTPException(
+            status_code=500,
+            detail='Game ID not found'
+        )
 
     f = get_faction(game_state.factions, player.faction_id)
 

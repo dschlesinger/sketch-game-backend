@@ -111,7 +111,7 @@ def generate_game_state_yaml_manual(game_state: GameState) -> str:
         for n_id in p.neighbors:
             n_name = province_name_lookup.get(n_id, "Unknown")
             n_id_truncated = n_id
-            neighbor_list.append(f"{n_name} ({n_id_truncated})") # e.g., "Latium (01)"
+            neighbor_list.append(f"{n_name} ({n_id_truncated})") # e.g., "Latium (uuid)"
         
         if neighbor_list:
             yaml_lines.append("    neighbors:")

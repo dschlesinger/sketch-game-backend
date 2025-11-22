@@ -48,7 +48,7 @@ def advisor(game_id: str, faction_id: str, chats: List[AdvisorMessage], storage:
             ],
         ]
     
-    print(messages)
+    # print(messages)
 
     stream = client.chat.completions.create(
         model="openai/gpt-4o-mini",
@@ -69,7 +69,7 @@ def advisor(game_id: str, faction_id: str, chats: List[AdvisorMessage], storage:
         if chunk:
             content = chunk.choices[0].delta.content
             # content = chunk
-            print("LLM TOKEN:", content)
+            # print("LLM TOKEN:", content)
 
             if content:
                 # SSE FORMAT!

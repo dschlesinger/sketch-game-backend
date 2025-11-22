@@ -118,6 +118,9 @@ def update_game_state(game_state: GameState, updates: GameUpdateList) -> GameSta
 
                 army.numbers += u.props['numbers']
 
+                if army.numbers < 1:
+                    remove_army_from_current_province(game_state.provinces, army.army_id)
+
             case 'province_change':
 
                 faction_id = u.props['faction_id']

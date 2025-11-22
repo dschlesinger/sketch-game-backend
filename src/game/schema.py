@@ -55,7 +55,7 @@ class GameState(BaseModel):
     game_id: str
     name: str
     owner: str
-    game_over: bool
+    game_over: bool = False
     turn_status: Literal['playing', 'editting_game_state', 'updating_context'] = 'playing'
 
     factions: List[Faction]

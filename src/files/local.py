@@ -5,34 +5,25 @@ from typing import Dict, Set
 from pydantic import BaseModel
 
 from game.schema import GameState
+from files.schema import GameNotFoundException, UpdateFailedException
 
-class LocalStorage(BaseModel):
+class LocalStorage:
 
     context_route: str = 'dev/game_context'
     game_state_route: str = 'dev/game_state'
     advisor_notes_route: str = 'dev/advisor_notes'
 
-    @property
-    @staticmethod
-    def all_game_ids(self) -> Set[str]:
-
-        all_game_ids = set()
-
-        # Check game state routes
-        for game_state in os.listdir(self.game_state_route):
-
-            game_id = game_state.removesuffix('.json')
-
-            all_game_ids.add(game_id)
-
-        return all_game_ids
-
     @staticmethod
     def load_txt(path: str) -> str:
 
-        with open(path, 'r') as f:
+        try:
 
-            text = f.read()
+            with open(path, 'r') as f:
+
+                text = f.read()
+
+        except FileNotFoundError as FNFE:
+            raise GameNotFoundException from FNFE
         
         return text
     
@@ -46,9 +37,14 @@ class LocalStorage(BaseModel):
     @staticmethod
     def load_json(path: str) -> Dict:
 
-        with open(path, 'r') as f:
+        try:
 
-            data = json.load(f)
+            with open(path, 'r') as f:
+
+                data = json.load(f)
+
+        except FileNotFoundError as FNFE:
+            raise GameNotFoundException from FNFE
         
         return data
 
