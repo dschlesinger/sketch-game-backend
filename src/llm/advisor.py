@@ -71,18 +71,18 @@ def advisor(game_id: str, faction_id: str, chats: List[Message], storage: LocalS
                 # SSE FORMAT!
                 yield f"event: llm\ndata: {content}\n\n"
 
-    note_taking_conv = [
-        f"{m.role}: {m.message}" for m in chats
-    ]
+    # note_taking_conv = [
+    #     f"{m.role}: {m.message}" for m in chats
+    # ]
 
-    note_taker(game_id, faction_id, note_taking_conv, storage)
+    # note_taker(game_id, faction_id, note_taking_conv, storage)
 
     yield "event: done\ndata: none"
 
     # Return the full message
     return ''.join([chunk.choices[0].delta.content for chunk in stream])
 
-def note_taker(game_id: str, faction_id: str, messages: List, storage: LocalStorage) -> None:
+def note_taker(game_id: str, faction_id: str, messages: List[Message], storage: LocalStorage) -> None:
 
     game_state = storage.get_game_state(game_id)
 
@@ -93,13 +93,14 @@ def note_taker(game_id: str, faction_id: str, messages: List, storage: LocalStor
     context = storage.get_context(game_id)
     advisor_notes = storage.get_advisor_notes(game_id, faction_id)
 
+    situtation = '### Situation\nPlayer and advisor'
     game_rules_section = f"### Game Rules\n{game_rules}\n"
-    faction_section = f"### Faction\nAdvising  for faction {f.name} (faction name) {faction_id} (faction_id)\n"
+    faction_section = f"### Faction\nAdvising for faction {f.name} (faction name) {faction_id} (faction_id)\n"
     context_section = f"### Game Context (Lore)\n{context}\n"
     advisor_notes_section = f"### Notes from previous sessions\n{advisor_notes}\n"
-    message_section = f"### Mesagges\n{'\n'.join(messages)}"
+    message_section = f"### Mesagges\n{'\n'.join([m.message for m in messages])}"
 
-    system_prompt = '\n'.join([prompt, game_rules_section, \
+    system_prompt = '\n'.join([prompt, situtation, game_rules_section, \
                                faction_section, context_section, \
                             advisor_notes_section, message_section
                             ])

@@ -1,12 +1,12 @@
 import random
 import json
-from typing import Generator
+from typing import Generator, Dict
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from server.schema import GameCreate, Game, GAME_ID_CHARS, Player, AdvisorChat, GameCreateStep
+from server.schema import GameCreate, Game, GAME_ID_CHARS, Player, UserMessage, GameCreateStep
 from server.settings import settings
 from server.manager import manager
 from server.websocket_handler import route_websocket
@@ -15,7 +15,9 @@ from game.create_game import make_game
 from llm.advisor import advisor, init_advising_notes
 from llm.ambassador import init_faction_relationships
 from llm.game_context import init_game_context
+from llm.message import message_faction, init_messages
 from files.exceptions import GameNotFoundException
+from files.general import Storage
 
 app = FastAPI()
 
@@ -40,7 +42,7 @@ else:
 
 # For checking if the server is active
 @app.get('/')
-def is_active() -> None:
+def is_active() -> Dict:
 
     return {
         'message': 'It\'s possible. I have friends everywhere.'
@@ -85,9 +87,12 @@ def create_game(game: GameCreate) -> StreamingResponse:
 
             yield f"data: {GameCreateStep(step='lore', game_id=game_id).model_dump_json()}\n\n"
 
+            fids = [f.faction_id for f in game_state.factions]
+
             init_game_context(game_id, storage)
             init_advising_notes(game_id, game_state.factions, storage)
-            init_faction_relationships(game_id, [f.faction_id for f in game_state.factions], storage)
+            init_faction_relationships(game_id, fids, storage)
+            init_messages(game_id, fids, storage)
 
             yield f"data: {GameCreateStep(step='final', game_id=game_id).model_dump_json()}\n\n"
             
@@ -135,10 +140,14 @@ async def join_game(player: Player) -> None:
 
     storage.set_game_state(player.game_id, game_state)
 
-@app.post("/advisor")
-def advisor_chat(chat: AdvisorChat) -> StreamingResponse:
+@app.post("/message")
+def advisor_chat(chat: UserMessage) -> StreamingResponse:
+    
+    # Switch same fid to advisor
+    if chat.from_fid == chat.to_fid:
+        chat.to_fid = 'advisor'
 
-    stream_chat = advisor(chat.game_id, chat.faction_id, chat.messages, storage)
+    stream_chat = message_faction(chat.game_id, chat.from_fid, chat.to_fid, chat.message, manager, storage)
 
     return StreamingResponse(stream_chat)
 
@@ -150,7 +159,7 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, faction_id: str
         # Not a valid attachment request
         return
 
-    await manager.connect(websocket, game_id)
+    await manager.connect(websocket, game_id, faction_id)
 
     try:
         while True:
@@ -170,4 +179,4 @@ async def websocket_endpoint(websocket: WebSocket, game_id: str, faction_id: str
                 await websocket.send_text(json.dumps({"error": "Invalid JSON"}))
 
     except WebSocketDisconnect:
-        manager.disconnect(websocket, game_id)
+        manager.disconnect(websocket, game_id, faction_id)

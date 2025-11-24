@@ -4,3 +4,6 @@ boto3
 dotenv
 openai
 pydantic-settings
+numpy
+shapely
+scipy

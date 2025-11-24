@@ -3,7 +3,7 @@ from typing import List, Literal, Dict
 
 from pydantic import BaseModel, field_validator
 
-from llm.advisor import AdvisorMessage
+from files.schema import Message
 
 class GameCreate(BaseModel):
 
@@ -39,11 +39,12 @@ class Player(BaseModel):
     game_id: str
     faction_id: str
 
-class AdvisorChat(BaseModel):
+class UserMessage(BaseModel):
     game_id: str
-    faction_id: str
+    from_fid: str
+    to_fid: str # fid or advisor
 
-    messages: List[AdvisorMessage]
+    message: str
 
 class GameCreateStep(BaseModel):
     step: str

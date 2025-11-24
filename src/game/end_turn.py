@@ -4,6 +4,7 @@ import json
 
 from game.schema import GameState, get_faction, get_province, get_army, remove_army_from_current_province, Army
 from llm.game_agent import end_of_turn_update
+from llm.advisor import note_taker
 from server.schema import GameUpdateList, GameUpdate
 from files.local import LocalStorage
 

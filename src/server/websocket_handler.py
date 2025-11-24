@@ -2,11 +2,13 @@ from typing import Dict
 
 from game.schema import get_faction
 from game.end_turn import endturn
-from files.local import LocalStorage
+from files.general import Storage
 from server.manager import ConnectionManager
 from server.schema import GameUpdate, GameUpdateList
+from llm.advisor import note_taker as ad_note_taker
+from llm.ambassador import note_taker as amb_note_taker
 
-async def route_websocket(game_id: str, faction_id: str, route: str, payload: Dict, manager: ConnectionManager, storage: LocalStorage) -> None:
+async def route_websocket(game_id: str, faction_id: str, route: str, payload: Dict, manager: ConnectionManager, storage: Storage) -> None:
 
     match route:
 
@@ -16,6 +18,27 @@ async def route_websocket(game_id: str, faction_id: str, route: str, payload: Di
             game_state = storage.get_game_state(game_id)
 
             player_faction = get_faction(game_state.factions, faction_id)
+            
+            # Save notes for advisor and all bot factions spoken to
+            messages = storage.get_messages(game_id, faction_id, 'advisor')
+            ad_note_taker(game_id, faction_id, messages, storage)
+            
+            # Delete Messages
+            storage.set_messages(game_id, faction_id, 'advisor', [])
+            
+            for f in game_state.factions:
+                
+                if f.available:
+                    
+                    messages = storage.get_messages(game_id, faction_id, f.faction_id)
+                    
+                    if len(messages) > 0:
+                        
+                        amb_note_taker(game_id, faction_id, f.faction_id, messages, storage)
+            
+                        # Delete messages
+                        storage.set_messages(game_id, faction_id, f.faction_id, [])
+
 
             player_faction.turn_ended = True
 

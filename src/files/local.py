@@ -23,32 +23,25 @@ class LocalStorage:
     # Low-level helpers
     # ------------------------
 
-    def _full_path(self, key: str) -> str:
-        """Prefix key with base_route base folder."""
-        return os.path.join(self.base_route, key)
-
-    def write_text(self, key: str, text: str) -> None:
-        path = self._full_path(key)
+    def write_text(self, path: str, text: str) -> None:
         os.makedirs(os.path.dirname(path), exist_ok=True)
 
         with open(path, "w", encoding="utf-8") as f:
             f.write(text)
 
-    def read_text(self, key: str) -> str:
-        path = self._full_path(key)
-
+    def read_text(self, path: str) -> str:
         try:
             with open(path, "r", encoding="utf-8") as f:
                 return f.read()
         except FileNotFoundError as FNFE:
             raise GameNotFoundException from FNFE
 
-    def write_json(self, key: str, data: Dict) -> None:
+    def write_json(self, path: str, data: Dict) -> None:
         text = json.dumps(data)
-        self.write_text(key, text)
+        self.write_text(path, text)
 
-    def read_json(self, key: str) -> Dict:
-        text = self.read_text(key)
+    def read_json(self, path: str) -> Dict:
+        text = self.read_text(path)
         return json.loads(text)
 
     # ------------------------
@@ -56,37 +49,37 @@ class LocalStorage:
     # ------------------------
 
     def get_context(self, game_id: str) -> str:
-        key = f"{self.context_route}/{game_id}.txt"
-        return self.read_text(key)
+        path = f"{self.base_route}/{self.context_route}/{game_id}.txt"
+        return self.read_text(path)
 
     def set_context(self, game_id: str, context: str) -> None:
-        key = f"{self.context_route}/{game_id}.txt"
-        self.write_text(key, context)
+        path = f"{self.base_route}/{self.context_route}/{game_id}.txt"
+        self.write_text(path, context)
 
     # ------------------------
     # Game State
     # ------------------------
 
     def get_game_state(self, game_id: str) -> GameState:
-        key = f"{self.game_state_route}/{game_id}.json"
-        data = self.read_json(key)
+        path = f"{self.base_route}/{self.game_state_route}/{game_id}.json"
+        data = self.read_json(path)
         return GameState(**data)
 
     def set_game_state(self, game_id: str, game_state: GameState) -> None:
-        key = f"{self.game_state_route}/{game_id}.json"
-        self.write_json(key, game_state.model_dump())
+        path = f"{self.base_route}/{self.game_state_route}/{game_id}.json"
+        self.write_json(path, game_state.model_dump())
 
     # ------------------------
     # Advisor Notes
     # ------------------------
 
     def get_advisor_notes(self, game_id: str, faction_id: str) -> str:
-        key = f"{self.advisor_notes_route}/{game_id}.{faction_id}.txt"
-        return self.read_text(key)
+        path = f"{self.base_route}/{self.advisor_notes_route}/{game_id}.{faction_id}.txt"
+        return self.read_text(path)
 
     def set_advisor_notes(self, game_id: str, faction_id: str, notes: str) -> None:
-        key = f"{self.advisor_notes_route}/{game_id}.{faction_id}.txt"
-        self.write_text(key, notes)
+        path = f"{self.base_route}/{self.advisor_notes_route}/{game_id}.{faction_id}.txt"
+        self.write_text(path, notes)
 
     # ------------------------
     # Faction Interactions
@@ -94,42 +87,42 @@ class LocalStorage:
 
     def get_faction_interactions(self, game_id: str, faction_1_id: str, faction_2_id: str) -> str:
         first_faction, second_faction = get_faction_order(faction_1_id, faction_2_id)
-        key = f"{self.faction_interaction_route}/{game_id}.{first_faction}.{second_faction}.txt"
-        return self.read_text(key)
+        path = f"{self.base_route}/{self.faction_interaction_route}/{game_id}.{first_faction}.{second_faction}.txt"
+        return self.read_text(path)
 
     def set_faction_interactions(self, game_id: str, faction_1_id: str, faction_2_id: str, interaction: str) -> None:
         first_faction, second_faction = get_faction_order(faction_1_id, faction_2_id)
-        key = f"{self.faction_interaction_route}/{game_id}.{first_faction}.{second_faction}.txt"
-        self.write_text(key, interaction)
+        path = f"{self.base_route}/{self.faction_interaction_route}/{game_id}.{first_faction}.{second_faction}.txt"
+        self.write_text(path, interaction)
 
     # ------------------------
     # Messaging
     # ------------------------
     def get_messages(self, game_id: str, faction_1_id: str, faction_2_id: str) -> List[Message]:
         first_faction, second_faction = get_faction_order(faction_1_id, faction_2_id)
-        key = f"{self.messages_route}/{game_id}.{first_faction}.{second_faction}.txt"
-        data = self.read_json(key)
-        return [Message(m) for m in data.get('messages', [])]
+        path = f"{self.base_route}/{self.messages_route}/{game_id}.{first_faction}.{second_faction}.txt"
+        data = self.read_json(path)
+        return [Message(**m) for m in data.get('messages', [])]
     
     def set_messages(self, game_id: str, faction_1_id: str, faction_2_id: str, messages: List[Message]) -> None:
         first_faction, second_faction = get_faction_order(faction_1_id, faction_2_id)
-        key = f"{self.messages_route}/{game_id}.{first_faction}.{second_faction}.txt"
+        path = f"{self.base_route}/{self.messages_route}/{game_id}.{first_faction}.{second_faction}.txt"
         data = {
             'messages': [m.model_dump() for m in messages]
         }
-        self.write_json(key, data)
+        self.write_json(path, data)
 
     def add_message(self, game_id: str, faction_1_id: str, faction_2_id: str, message: Message) -> None:
         first_faction, second_faction = get_faction_order(faction_1_id, faction_2_id)
-        key = f"{self.messages_route}/{game_id}.{first_faction}.{second_faction}.txt"
-        messages = self.read_json(key).get('messages', [])
+        path = f"{self.base_route}/{self.messages_route}/{game_id}.{first_faction}.{second_faction}.txt"
+        messages = self.read_json(path).get('messages', [])
         if not isinstance(messages, List):
             raise TypeError(f'Messages from file must be list found {messages}')
         messages.append(message)
         data = {
             'messages': [m.model_dump() for m in messages]
         }
-        self.write_json(key, data)
+        self.write_json(path, data)
 
 if __name__ == "__main__":
 
@@ -181,3 +174,10 @@ if __name__ == "__main__":
 
     print("\n---- Test 8: Load Messages ----")
     storage.get_messages(game_id, faction_a, faction_b)
+    
+    game_id = 'QOWH8T'
+    
+    game_state = storage.get_game_state(game_id)
+    
+    from llm.message import init_messages
+    init_messages(game_id, [f.faction_id for f in game_state.factions], storage)

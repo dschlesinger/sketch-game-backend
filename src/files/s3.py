@@ -97,6 +97,8 @@ class S3Storage:
         key = f"{self.faction_interaction_route}/{game_id}-{first_faction}-{second_faction}.txt"
 
         self.write_text(key, interaction)
+        
+    # Need to add messaging
 
 if __name__ == '__main__':
 
