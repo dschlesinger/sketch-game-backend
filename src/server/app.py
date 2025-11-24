@@ -13,8 +13,9 @@ from server.websocket_handler import route_websocket
 from game.schema import GameState, get_faction
 from game.create_game import make_game
 from llm.advisor import advisor, init_advising_notes
+from llm.ambassador import init_faction_relationships
 from llm.game_context import init_game_context
-from files.schema import GameNotFoundException
+from files.exceptions import GameNotFoundException
 
 app = FastAPI()
 
@@ -33,7 +34,9 @@ if settings.devolopment:
     storage = LocalStorage()
 else:
     # Prod
-    raise NotImplementedError('Production storage not implemented')
+    from files.s3 import S3Storage
+
+    storage = S3Storage()
 
 # For checking if the server is active
 @app.get('/')
@@ -84,6 +87,7 @@ def create_game(game: GameCreate) -> StreamingResponse:
 
             init_game_context(game_id, storage)
             init_advising_notes(game_id, game_state.factions, storage)
+            init_faction_relationships(game_id, [f.faction_id for f in game_state.factions], storage)
 
             yield f"data: {GameCreateStep(step='final', game_id=game_id).model_dump_json()}\n\n"
             

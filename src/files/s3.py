@@ -4,7 +4,7 @@ import json
 import boto3
 
 from server.settings import settings
-from files.schema import GameNotFoundException
+from files.exceptions import GameNotFoundException
 from game.schema import GameState
 
 

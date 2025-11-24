@@ -4,14 +4,10 @@ from pydantic import BaseModel
 
 from game.schema import get_faction
 from files.local import LocalStorage
+from files.schema import Message
 from llm.client import client
 from llm.llm_game_state import process
 from llm.helper_func import load_prompt, load_gamerules
-
-class AdvisorMessage(BaseModel):
-    role: Literal['player', 'advisor']
-
-    message: str
 
 def init_advising_notes(game_id: str, faction_ids: List[str], storage: LocalStorage) -> None:
 
@@ -20,7 +16,7 @@ def init_advising_notes(game_id: str, faction_ids: List[str], storage: LocalStor
         storage.set_advisor_notes(game_id, f.faction_id, '')
 
 # Streaming
-def advisor(game_id: str, faction_id: str, chats: List[AdvisorMessage], storage: LocalStorage):
+def advisor(game_id: str, faction_id: str, chats: List[Message], storage: LocalStorage):
     advisor_prompt = load_prompt('advisor')
     game_rules = load_gamerules()
     game_state = storage.get_game_state(game_id)
@@ -43,7 +39,7 @@ def advisor(game_id: str, faction_id: str, chats: List[AdvisorMessage], storage:
     messages = [
             {"role": "system", "content": system_prompt},
             *[
-                {"role": "user" if m.role == "player" else "assistant", "content": m.message}
+                {"role": "assistant" if m.role == "advisor" else "user", "content": m.message}
                 for m in chats
             ],
         ]
@@ -82,6 +78,9 @@ def advisor(game_id: str, faction_id: str, chats: List[AdvisorMessage], storage:
     note_taker(game_id, faction_id, note_taking_conv, storage)
 
     yield "event: done\ndata: none"
+
+    # Return the full message
+    return ''.join([chunk.choices[0].delta.content for chunk in stream])
 
 def note_taker(game_id: str, faction_id: str, messages: List, storage: LocalStorage) -> None:
 

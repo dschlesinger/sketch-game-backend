@@ -1,11 +1,5 @@
 from typing import Tuple
 
-from pydantic import BaseModel
-
-class Message(BaseModel):
-    role: str # Faction ID | Advisor
-    message: str
-
 def get_faction_order(faction_1_id: str, faction_2_id: str) -> Tuple[str]:
 
     first_faction, second_faction = max(faction_1_id, faction_2_id), min(faction_1_id, faction_2_id)
